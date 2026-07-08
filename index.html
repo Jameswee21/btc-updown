@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>₿ UP or DOWN — Bitcoin Prediction Game</title>
+<meta name="description" content="Guess if Bitcoin goes UP or DOWN in 15 seconds. 15초 뒤 비트코인이 오를까 내릴까? 심심풀이 예측 게임!">
+<style>
+  :root {
+    --bg: #0b0e14;
+    --card: #141926;
+    --card2: #1b2233;
+    --border: #262f45;
+    --text: #e8ecf4;
+    --muted: #8b95ab;
+    --up: #22c55e;
+    --down: #ef4444;
+    --gold: #f7931a;
+    --gold-soft: rgba(247, 147, 26, 0.15);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    background: radial-gradient(1200px 600px at 50% -10%, #17203a 0%, var(--bg) 55%);
+    color: var(--text);
+    font-family: "Pretendard", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans KR", "Apple SD Gothic Neo", sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100%;
+  }
+  .wrap {
+    width: 100%;
+    max-width: 520px;
+    padding: 16px 16px 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  /* ── header ─────────────────────────── */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 2px;
+  }
+  .logo {
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: -0.3px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .logo .coin {
+    display: inline-flex;
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    background: linear-gradient(145deg, #ffb347, var(--gold));
+    color: #1a1200;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    box-shadow: 0 0 18px rgba(247,147,26,.45);
+  }
+  .lang-btn {
+    background: var(--card);
+    color: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .lang-btn:hover { color: var(--text); border-color: var(--gold); }
+
+  /* ── price card ─────────────────────── */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 18px;
+  }
+  .price-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .pair { font-size: 13px; color: var(--muted); font-weight: 600; letter-spacing: .5px; }
+  .conn { font-size: 11px; color: var(--muted); }
+  .conn .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #777; margin-right: 4px; }
+  .conn.live .dot { background: var(--up); box-shadow: 0 0 6px var(--up); }
+  .conn.sim .dot { background: var(--gold); box-shadow: 0 0 6px var(--gold); }
+  .sim-notice {
+    display: none;
+    font-size: 12px;
+    color: var(--gold);
+    margin-top: 8px;
+    line-height: 1.5;
+  }
+  .sim-notice.show { display: block; }
+  .price {
+    font-size: 40px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -1px;
+    margin: 4px 0 2px;
+    transition: color .25s;
+  }
+  .price.flash-up { color: var(--up); }
+  .price.flash-down { color: var(--down); }
+  canvas#spark { width: 100%; height: 64px; display: block; margin-top: 8px; }
+
+  /* ── game card ──────────────────────── */
+  .game-title { text-align: center; font-size: 15px; color: var(--muted); font-weight: 600; margin-bottom: 14px; }
+  .btn-row { display: flex; gap: 12px; }
+  .bet-btn {
+    flex: 1;
+    border: none;
+    border-radius: 16px;
+    padding: 20px 8px 16px;
+    font-size: 17px;
+    font-weight: 800;
+    font-family: inherit;
+    color: #fff;
+    cursor: pointer;
+    transition: transform .1s, filter .15s, opacity .15s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+  .bet-btn .emo { font-size: 34px; }
+  .bet-btn:active { transform: scale(.96); }
+  .bet-btn:disabled { opacity: .35; cursor: not-allowed; }
+  .bet-up { background: linear-gradient(160deg, #16a34a, #15803d); box-shadow: 0 6px 20px rgba(34,197,94,.25); }
+  .bet-up:hover:not(:disabled) { filter: brightness(1.12); }
+  .bet-down { background: linear-gradient(160deg, #dc2626, #b91c1c); box-shadow: 0 6px 20px rgba(239,68,68,.25); }
+  .bet-down:hover:not(:disabled) { filter: brightness(1.12); }
+
+  /* round view */
+  .round { display: none; text-align: center; }
+  .round.show { display: block; }
+  .countdown {
+    font-size: 64px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.1;
+    margin: 2px 0 6px;
+  }
+  .countdown.hurry { color: var(--down); animation: pulse .5s infinite alternate; }
+  @keyframes pulse { from { transform: scale(1); } to { transform: scale(1.08); } }
+  .pick-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    font-weight: 700;
+    padding: 6px 14px;
+    border-radius: 20px;
+    margin-bottom: 8px;
+  }
+  .pick-badge.up { background: rgba(34,197,94,.15); color: var(--up); }
+  .pick-badge.down { background: rgba(239,68,68,.15); color: var(--down); }
+  .delta-live {
+    font-size: 22px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    margin-top: 4px;
+  }
+  .delta-live.up { color: var(--up); }
+  .delta-live.down { color: var(--down); }
+  .lock-info { font-size: 13px; color: var(--muted); margin-top: 6px; }
+
+  /* result view */
+  .result { display: none; text-align: center; }
+  .result.show { display: block; }
+  .result-banner { font-size: 44px; font-weight: 800; margin: 4px 0; }
+  .result-banner.win { color: var(--up); }
+  .result-banner.lose { color: var(--down); }
+  .result-banner.draw { color: var(--muted); }
+  .result-sub { font-size: 15px; color: var(--muted); margin-bottom: 14px; font-variant-numeric: tabular-nums; }
+  .again-btn {
+    background: linear-gradient(145deg, #ffb347, var(--gold));
+    color: #1a1200;
+    border: none;
+    border-radius: 14px;
+    padding: 14px 32px;
+    font-size: 16px;
+    font-weight: 800;
+    font-family: inherit;
+    cursor: pointer;
+    transition: transform .1s, filter .15s;
+    box-shadow: 0 6px 20px rgba(247,147,26,.3);
+  }
+  .again-btn:hover { filter: brightness(1.08); }
+  .again-btn:active { transform: scale(.96); }
+  .share-btn {
+    display: block;
+    margin: 10px auto 0;
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: 12px;
+    padding: 9px 20px;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .share-btn:hover { color: var(--text); border-color: var(--muted); }
+
+  /* ── stats ──────────────────────────── */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+  .stat {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 12px 8px;
+    text-align: center;
+  }
+  .stat .num { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .stat .lbl { font-size: 11px; color: var(--muted); margin-top: 3px; font-weight: 600; }
+  .stat .num.fire { color: var(--gold); }
+
+  /* ── donate ─────────────────────────── */
+  .donate-btn {
+    background: var(--gold-soft);
+    border: 1px solid rgba(247,147,26,.4);
+    color: var(--gold);
+    border-radius: 14px;
+    padding: 13px;
+    font-size: 15px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .donate-btn:hover { background: rgba(247,147,26,.25); }
+  .disclaimer { text-align: center; font-size: 11px; color: #5a6478; line-height: 1.5; }
+
+  /* modal */
+  .modal-bg {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.7);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    z-index: 50;
+  }
+  .modal-bg.show { display: flex; }
+  .modal {
+    background: var(--card2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 26px 22px;
+    width: 100%;
+    max-width: 360px;
+    text-align: center;
+    position: relative;
+  }
+  .modal h2 { font-size: 19px; margin-bottom: 6px; }
+  .modal .sub { font-size: 13px; color: var(--muted); margin-bottom: 16px; line-height: 1.5; }
+  .modal .qr {
+    width: 180px; height: 180px;
+    border-radius: 12px;
+    background: #fff;
+    padding: 8px;
+    margin: 0 auto 14px;
+    display: block;
+  }
+  .addr-box {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 12px;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    word-break: break-all;
+    color: var(--text);
+    margin-bottom: 12px;
+    text-align: left;
+  }
+  .copy-btn {
+    width: 100%;
+    background: linear-gradient(145deg, #ffb347, var(--gold));
+    color: #1a1200;
+    border: none;
+    border-radius: 12px;
+    padding: 12px;
+    font-size: 15px;
+    font-weight: 800;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .copy-btn:active { transform: scale(.97); }
+  .close-x {
+    position: absolute;
+    top: 12px; right: 14px;
+    background: none; border: none;
+    color: var(--muted);
+    font-size: 22px;
+    cursor: pointer;
+    line-height: 1;
+  }
+  .addr-warn {
+    background: rgba(239,68,68,.12);
+    border: 1px solid rgba(239,68,68,.35);
+    color: #fda4a4;
+    border-radius: 10px;
+    padding: 12px;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  /* confetti */
+  .confetti-piece {
+    position: fixed;
+    font-size: 24px;
+    pointer-events: none;
+    z-index: 100;
+    animation: fall 1.6s ease-in forwards;
+  }
+  @keyframes fall {
+    from { transform: translateY(-10vh) rotate(0deg); opacity: 1; }
+    to { transform: translateY(110vh) rotate(540deg); opacity: .6; }
+  }
+
+  @media (max-width: 380px) {
+    .price { font-size: 32px; }
+    .countdown { font-size: 52px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="logo"><span class="coin">₿</span><span data-i18n="title">UP or DOWN</span></div>
+    <button class="lang-btn" id="langBtn">EN</button>
+  </header>
+
+  <!-- price -->
+  <div class="card">
+    <div class="price-row">
+      <span class="pair">BTC / USD</span>
+      <span class="conn" id="conn"><span class="dot"></span><span id="connTxt">connecting…</span></span>
+    </div>
+    <div class="price" id="price">--,---</div>
+    <canvas id="spark" width="960" height="128"></canvas>
+    <div class="sim-notice" id="simNotice" data-i18n="simNotice"></div>
+  </div>
+
+  <!-- game -->
+  <div class="card" id="gameCard">
+    <!-- idle -->
+    <div id="idleView">
+      <div class="game-title" data-i18n="question">15초 뒤, 비트코인은?</div>
+      <div class="btn-row">
+        <button class="bet-btn bet-up" id="btnUp" disabled>
+          <span class="emo">🚀</span><span data-i18n="up">오른다!</span>
+        </button>
+        <button class="bet-btn bet-down" id="btnDown" disabled>
+          <span class="emo">🐻</span><span data-i18n="down">내린다!</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- round in progress -->
+    <div class="round" id="roundView">
+      <div class="pick-badge" id="pickBadge"></div>
+      <div class="countdown" id="countdown">15</div>
+      <div class="delta-live" id="deltaLive">$0.00</div>
+      <div class="lock-info"><span data-i18n="lockedAt">시작 가격</span>: <span id="lockPrice"></span></div>
+    </div>
+
+    <!-- result -->
+    <div class="result" id="resultView">
+      <div class="result-banner" id="resultBanner"></div>
+      <div class="result-sub" id="resultSub"></div>
+      <button class="again-btn" id="againBtn" data-i18n="again">한 판 더!</button>
+      <button class="share-btn" id="shareBtn" data-i18n="share">결과 공유하기</button>
+    </div>
+  </div>
+
+  <!-- stats -->
+  <div class="stats">
+    <div class="stat"><div class="num fire" id="stStreak">0</div><div class="lbl">🔥 <span data-i18n="streak">연승</span></div></div>
+    <div class="stat"><div class="num" id="stBest">0</div><div class="lbl">🏆 <span data-i18n="best">최고 연승</span></div></div>
+    <div class="stat"><div class="num" id="stRecord">0 - 0</div><div class="lbl">📊 <span data-i18n="record">전적</span></div></div>
+  </div>
+
+  <!-- donate -->
+  <button class="donate-btn" id="donateBtn" data-i18n="donate">☕ 재밌었다면 비트코인 한 사토시 어때요?</button>
+
+  <p class="disclaimer" data-i18n="disclaimer">실제 돈이 오가지 않는 재미용 게임입니다. 시세: Binance 실시간 데이터.</p>
+
+</div>
+
+<!-- donate modal -->
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <button class="close-x" id="closeModal">×</button>
+    <h2 data-i18n="donateTitle">⚡ 비트코인 후원</h2>
+    <p class="sub" data-i18n="donateSub">재밌게 즐기셨다면 개발자에게 사토시를 보내주세요. 큰 힘이 됩니다! 🧡</p>
+    <div id="donateBody"></div>
+  </div>
+</div>
+
+<script>
+/* ════════════════════════════════════════════════════════════
+   ⚙️ 설정 — 본인의 비트코인 주소로 바꿔주세요!
+   Replace with YOUR Bitcoin address before deploying.
+   ════════════════════════════════════════════════════════════ */
+const DONATION_ADDRESS = "YOUR_BTC_ADDRESS_HERE";
+const ROUND_SECONDS = 15;
+
+/* ── i18n ─────────────────────────────── */
+const I18N = {
+  ko: {
+    title: "UP or DOWN",
+    question: `${ROUND_SECONDS}초 뒤, 비트코인은?`,
+    up: "오른다!",
+    down: "내린다!",
+    lockedAt: "시작 가격",
+    win: "🎉 적중!",
+    lose: "😭 빗나감!",
+    draw: "😐 무승부",
+    again: "한 판 더!",
+    share: "결과 공유하기",
+    streak: "연승",
+    best: "최고 연승",
+    record: "전적",
+    donate: "☕ 재밌었다면 비트코인 한 사토시 어때요?",
+    donateTitle: "⚡ 비트코인 후원",
+    donateSub: "재밌게 즐기셨다면 개발자에게 사토시를 보내주세요. 큰 힘이 됩니다! 🧡",
+    copy: "주소 복사",
+    copied: "✅ 복사됨!",
+    disclaimer: "실제 돈이 오가지 않는 재미용 게임입니다. 시세: 주요 거래소 실시간 데이터.",
+    connecting: "연결 중…",
+    live: "실시간",
+    offline: "연결 끊김 — 재시도 중",
+    sim: "시뮬레이션",
+    simNotice: "⚠️ 실시간 시세 서버에 연결할 수 없어 가상 시세로 진행 중입니다. (백그라운드에서 계속 재연결 시도)",
+    yourPick: "나의 선택",
+    pickUp: "🚀 오른다",
+    pickDown: "🐻 내린다",
+    shareText: (streak, w, l) => `₿ UP or DOWN — 비트코인 예측 게임에서 ${streak}연승 중! (전적 ${w}승 ${l}패) 너도 도전해봐 👉`,
+    shareCopied: "✅ 결과가 복사됐어요! 붙여넣기 해보세요.",
+    noAddr: "⚠️ 후원 주소가 아직 설정되지 않았습니다.\nindex.html 상단의 DONATION_ADDRESS 값을 본인 비트코인 주소로 바꿔주세요.",
+  },
+  en: {
+    title: "UP or DOWN",
+    question: `Where will Bitcoin be in ${ROUND_SECONDS} seconds?`,
+    up: "UP!",
+    down: "DOWN!",
+    lockedAt: "Entry price",
+    win: "🎉 Nailed it!",
+    lose: "😭 Missed!",
+    draw: "😐 Draw",
+    again: "One more!",
+    share: "Share result",
+    streak: "Streak",
+    best: "Best streak",
+    record: "Record",
+    donate: "☕ Enjoyed it? Send a satoshi!",
+    donateTitle: "⚡ Bitcoin Donation",
+    donateSub: "If you had fun, send the developer a few sats. It means a lot! 🧡",
+    copy: "Copy address",
+    copied: "✅ Copied!",
+    disclaimer: "Just for fun — no real money involved. Price: live data from major exchanges.",
+    connecting: "connecting…",
+    live: "LIVE",
+    offline: "disconnected — retrying",
+    sim: "SIMULATION",
+    simNotice: "⚠️ Live price feeds are unreachable — playing with simulated prices. (Still retrying in the background)",
+    yourPick: "Your pick",
+    pickUp: "🚀 UP",
+    pickDown: "🐻 DOWN",
+    shareText: (streak, w, l) => `₿ UP or DOWN — I'm on a ${streak}-win streak in the Bitcoin prediction game! (${w}W ${l}L) Try to beat me 👉`,
+    shareCopied: "✅ Result copied! Paste it anywhere.",
+    noAddr: "⚠️ Donation address not set yet.\nEdit DONATION_ADDRESS at the top of index.html.",
+  },
+};
+let lang = (localStorage.getItem("btcud_lang")) ||
+  ((navigator.language || "en").toLowerCase().startsWith("ko") ? "ko" : "en");
+
+function t(key) { return I18N[lang][key]; }
+
+function applyLang() {
+  document.documentElement.lang = lang;
+  document.querySelectorAll("[data-i18n]").forEach(el => {
+    const v = I18N[lang][el.dataset.i18n];
+    if (typeof v === "string") el.textContent = v;
+  });
+  document.getElementById("langBtn").textContent = lang === "ko" ? "EN" : "한국어";
+  updateConnUI();
+}
+document.getElementById("langBtn").addEventListener("click", () => {
+  lang = lang === "ko" ? "en" : "ko";
+  localStorage.setItem("btcud_lang", lang);
+  applyLang();
+});
+
+/* ── price feed ───────────────────────── */
+/* Live sources are tried in order (Binance is blocked in some regions,
+   so Coinbase/Kraken/CryptoCompare act as fallbacks). If every feed is
+   unreachable (e.g. corporate firewall), the game switches to a clearly
+   labelled simulation mode and keeps retrying live in the background. */
+let price = null;
+let prevPrice = null;
+let connState = "connecting"; // connecting | live | offline | sim
+let mode = "boot";            // boot | live | sim
+let lastLiveAt = 0;
+const history = [];
+const MAX_HISTORY = 90;
+
+const fmt = n => "$" + n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+function updateConnUI() {
+  const conn = document.getElementById("conn");
+  conn.classList.toggle("live", connState === "live");
+  conn.classList.toggle("sim", connState === "sim");
+  document.getElementById("connTxt").textContent =
+    connState === "live" ? t("live") :
+    connState === "sim" ? t("sim") :
+    connState === "offline" ? t("offline") : t("connecting");
+  document.getElementById("simNotice").classList.toggle("show", connState === "sim");
+}
+
+function setPrice(p) {
+  prevPrice = price;
+  price = p;
+  history.push(p);
+  if (history.length > MAX_HISTORY) history.shift();
+
+  const el = document.getElementById("price");
+  el.textContent = fmt(p);
+  el.classList.remove("flash-up", "flash-down");
+  if (prevPrice !== null && p !== prevPrice) {
+    void el.offsetWidth; // restart transition
+    el.classList.add(p > prevPrice ? "flash-up" : "flash-down");
+  }
+
+  document.getElementById("btnUp").disabled = false;
+  document.getElementById("btnDown").disabled = false;
+
+  drawSpark();
+  if (game.state === "betting") updateRoundUI();
+}
+
+function applyLivePrice(p) {
+  if (isNaN(p) || p <= 0) return;
+  lastLiveAt = Date.now();
+  if (mode === "sim") {
+    if (game.state === "betting") return; // don't disturb a simulated round in progress
+    stopSim();
+  }
+  mode = "live";
+  if (connState !== "live") { connState = "live"; updateConnUI(); }
+  setPrice(p);
+}
+
+/* websocket feeds */
+const WS_SOURCES = [
+  {
+    url: "wss://stream.binance.com:9443/ws/btcusdt@miniTicker",
+    parse: m => parseFloat(JSON.parse(m).c),
+  },
+  {
+    url: "wss://ws-feed.exchange.coinbase.com",
+    sub: { type: "subscribe", product_ids: ["BTC-USD"], channels: ["ticker"] },
+    parse: m => { const d = JSON.parse(m); return d.type === "ticker" ? parseFloat(d.price) : NaN; },
+  },
+];
+let wsIdx = 0;
+let ws = null;
+
+function connectWS() {
+  const src = WS_SOURCES[wsIdx % WS_SOURCES.length];
+  let settled = false;
+  let gotData = false;
+  let failTimer = null;
+
+  const giveUp = () => {
+    if (settled) return;
+    settled = true;
+    clearTimeout(failTimer);
+    if (gotData && mode === "live") { connState = "offline"; updateConnUI(); }
+    startPolling();
+    wsIdx++;
+    setTimeout(connectWS, wsIdx % WS_SOURCES.length === 0 ? 10000 : 1500);
+  };
+
+  try { ws = new WebSocket(src.url); }
+  catch { giveUp(); return; }
+
+  // no usable message within 8s → treat as dead and rotate
+  failTimer = setTimeout(() => { try { ws.close(); } catch {} }, 8000);
+
+  ws.onopen = () => { if (src.sub) ws.send(JSON.stringify(src.sub)); };
+  ws.onmessage = e => {
+    let p;
+    try { p = src.parse(e.data); } catch { return; }
+    if (!isNaN(p) && p > 0) {
+      gotData = true;
+      clearTimeout(failTimer);
+      stopPolling();
+      applyLivePrice(p);
+    }
+  };
+  ws.onclose = giveUp;
+  ws.onerror = giveUp;
+}
+
+/* REST fallback polling */
+const REST_SOURCES = [
+  { url: "https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT", parse: d => parseFloat(d.price) },
+  { url: "https://api.coinbase.com/v2/prices/BTC-USD/spot", parse: d => parseFloat(d.data.amount) },
+  { url: "https://api.kraken.com/0/public/Ticker?pair=XBTUSD", parse: d => parseFloat(Object.values(d.result)[0].c[0]) },
+  { url: "https://min-api.cryptocompare.com/data/price?fsym=BTC&tsyms=USD", parse: d => parseFloat(d.USD) },
+];
+let goodRest = -1;
+let pollTimer = null;
+let pollBusy = false;
+
+async function pollOnce() {
+  if (pollBusy) return;
+  pollBusy = true;
+  const order = [...REST_SOURCES.keys()];
+  if (goodRest >= 0) order.sort((a, b) => (a === goodRest ? -1 : b === goodRest ? 1 : 0));
+  for (const i of order) {
+    const s = REST_SOURCES[i];
+    try {
+      const opts = typeof AbortSignal !== "undefined" && AbortSignal.timeout
+        ? { signal: AbortSignal.timeout(3500) } : {};
+      const r = await fetch(s.url, opts);
+      const p = s.parse(await r.json());
+      if (!isNaN(p) && p > 0) {
+        goodRest = i;
+        applyLivePrice(p);
+        pollBusy = false;
+        return;
+      }
+    } catch {}
+  }
+  goodRest = -1;
+  if (mode !== "sim") {
+    connState = price === null ? "connecting" : "offline";
+    updateConnUI();
+  }
+  pollBusy = false;
+}
+function startPolling() {
+  if (pollTimer) return;
+  pollOnce();
+  pollTimer = setInterval(pollOnce, 2000);
+}
+function stopPolling() {
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+}
+
+/* simulation fallback — every live feed unreachable */
+let simTimer = null;
+function startSim() {
+  if (simTimer) return;
+  mode = "sim";
+  connState = "sim";
+  updateConnUI();
+  if (price === null) {
+    history.length = 0;
+    setPrice(Math.round(90000 + Math.random() * 20000) + Math.random());
+  }
+  simTimer = setInterval(() => {
+    const vol = price * 0.0004;
+    let step = (Math.random() - 0.5) * 2 * vol;
+    if (Math.random() < 0.06) step *= 6; // occasional spike, keeps it exciting
+    setPrice(Math.max(1000, price + step));
+  }, 600);
+  startPolling(); // keep retrying live feeds in the background
+}
+function stopSim() {
+  if (simTimer) { clearInterval(simTimer); simTimer = null; }
+  history.length = 0; // don't mix simulated and real prices in the chart
+}
+
+/* ── sparkline ────────────────────────── */
+function drawSpark() {
+  const cv = document.getElementById("spark");
+  const ctx = cv.getContext("2d");
+  const W = cv.width, H = cv.height;
+  ctx.clearRect(0, 0, W, H);
+  if (history.length < 2) return;
+
+  let min = Math.min(...history), max = Math.max(...history);
+  if (max - min < 0.01) { min -= 1; max += 1; }
+  const pad = (max - min) * 0.15;
+  min -= pad; max += pad;
+
+  const x = i => (i / (history.length - 1)) * W;
+  const y = v => H - ((v - min) / (max - min)) * H;
+
+  const rising = history[history.length - 1] >= history[0];
+  const col = rising ? "#22c55e" : "#ef4444";
+
+  // area fill
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, rising ? "rgba(34,197,94,.25)" : "rgba(239,68,68,.25)");
+  grad.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.beginPath();
+  ctx.moveTo(0, H);
+  history.forEach((v, i) => ctx.lineTo(x(i), y(v)));
+  ctx.lineTo(W, H);
+  ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // line
+  ctx.beginPath();
+  history.forEach((v, i) => i === 0 ? ctx.moveTo(x(i), y(v)) : ctx.lineTo(x(i), y(v)));
+  ctx.strokeStyle = col;
+  ctx.lineWidth = 3;
+  ctx.lineJoin = "round";
+  ctx.stroke();
+
+  // entry-price line during a round
+  if (game.state === "betting" && game.lockPrice >= min && game.lockPrice <= max) {
+    ctx.beginPath();
+    ctx.setLineDash([6, 6]);
+    ctx.moveTo(0, y(game.lockPrice));
+    ctx.lineTo(W, y(game.lockPrice));
+    ctx.strokeStyle = "rgba(247,147,26,.8)";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+}
+
+/* ── game ─────────────────────────────── */
+const game = {
+  state: "idle",   // idle | betting | result
+  pick: null,      // "up" | "down"
+  lockPrice: null,
+  endsAt: null,
+  timer: null,
+};
+
+const stats = JSON.parse(localStorage.getItem("btcud_stats") || '{"wins":0,"losses":0,"streak":0,"best":0}');
+function saveStats() { localStorage.setItem("btcud_stats", JSON.stringify(stats)); }
+function renderStats() {
+  document.getElementById("stStreak").textContent = stats.streak;
+  document.getElementById("stBest").textContent = stats.best;
+  document.getElementById("stRecord").textContent = `${stats.wins} - ${stats.losses}`;
+}
+
+function showView(name) {
+  document.getElementById("idleView").style.display = name === "idle" ? "block" : "none";
+  document.getElementById("roundView").classList.toggle("show", name === "round");
+  document.getElementById("resultView").classList.toggle("show", name === "result");
+}
+
+function startRound(pick) {
+  if (price === null || game.state === "betting") return;
+  game.state = "betting";
+  game.pick = pick;
+  game.lockPrice = price;
+  game.endsAt = Date.now() + ROUND_SECONDS * 1000;
+
+  const badge = document.getElementById("pickBadge");
+  badge.className = "pick-badge " + pick;
+  badge.textContent = `${t("yourPick")}: ${pick === "up" ? t("pickUp") : t("pickDown")}`;
+  document.getElementById("lockPrice").textContent = fmt(game.lockPrice);
+
+  showView("round");
+  updateRoundUI();
+  game.timer = setInterval(tick, 100);
+}
+
+function tick() {
+  const left = game.endsAt - Date.now();
+  if (left <= 0) { finishRound(); return; }
+  const sec = Math.ceil(left / 1000);
+  const cd = document.getElementById("countdown");
+  cd.textContent = sec;
+  cd.classList.toggle("hurry", sec <= 5);
+}
+
+function updateRoundUI() {
+  if (game.lockPrice === null || price === null) return;
+  const d = price - game.lockPrice;
+  const el = document.getElementById("deltaLive");
+  el.textContent = (d >= 0 ? "+" : "−") + "$" + Math.abs(d).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  el.className = "delta-live " + (d > 0 ? "up" : d < 0 ? "down" : "");
+}
+
+function finishRound() {
+  clearInterval(game.timer);
+  game.state = "result";
+
+  const d = price - game.lockPrice;
+  let outcome; // win | lose | draw
+  if (d === 0) outcome = "draw";
+  else outcome = ((d > 0) === (game.pick === "up")) ? "win" : "lose";
+
+  if (outcome === "win") {
+    stats.wins++;
+    stats.streak++;
+    if (stats.streak > stats.best) stats.best = stats.streak;
+    burstConfetti();
+  } else if (outcome === "lose") {
+    stats.losses++;
+    stats.streak = 0;
+  }
+  saveStats();
+  renderStats();
+
+  const banner = document.getElementById("resultBanner");
+  banner.className = "result-banner " + outcome;
+  banner.textContent = t(outcome);
+  const sign = d > 0 ? "+" : d < 0 ? "−" : "";
+  document.getElementById("resultSub").textContent =
+    `${fmt(game.lockPrice)} → ${fmt(price)}  (${sign}$${Math.abs(d).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`;
+
+  showView("result");
+}
+
+document.getElementById("btnUp").addEventListener("click", () => startRound("up"));
+document.getElementById("btnDown").addEventListener("click", () => startRound("down"));
+document.getElementById("againBtn").addEventListener("click", () => {
+  game.state = "idle";
+  showView("idle");
+});
+
+/* share */
+document.getElementById("shareBtn").addEventListener("click", async () => {
+  const text = t("shareText")(stats.streak, stats.wins, stats.losses) + " " + location.href;
+  if (navigator.share) {
+    try { await navigator.share({ text }); return; } catch {}
+  }
+  try {
+    await navigator.clipboard.writeText(text);
+    alert(t("shareCopied"));
+  } catch {}
+});
+
+/* confetti */
+function burstConfetti() {
+  const emojis = ["🎉", "₿", "🚀", "💰", "🧡", "✨"];
+  for (let i = 0; i < 24; i++) {
+    const el = document.createElement("div");
+    el.className = "confetti-piece";
+    el.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+    el.style.left = Math.random() * 100 + "vw";
+    el.style.animationDelay = Math.random() * 0.4 + "s";
+    el.style.fontSize = 16 + Math.random() * 18 + "px";
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 2200);
+  }
+}
+
+/* ── donate modal ─────────────────────── */
+const modalBg = document.getElementById("modalBg");
+document.getElementById("donateBtn").addEventListener("click", () => {
+  renderDonateBody();
+  modalBg.classList.add("show");
+});
+document.getElementById("closeModal").addEventListener("click", () => modalBg.classList.remove("show"));
+modalBg.addEventListener("click", e => { if (e.target === modalBg) modalBg.classList.remove("show"); });
+
+function renderDonateBody() {
+  const body = document.getElementById("donateBody");
+  if (!DONATION_ADDRESS || DONATION_ADDRESS === "YOUR_BTC_ADDRESS_HERE") {
+    body.innerHTML = `<div class="addr-warn">${t("noAddr").replace("\n", "<br>")}</div>`;
+    return;
+  }
+  const uri = "bitcoin:" + DONATION_ADDRESS;
+  body.innerHTML = `
+    <img class="qr" alt="BTC QR" src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(uri)}">
+    <div class="addr-box">${DONATION_ADDRESS}</div>
+    <button class="copy-btn" id="copyAddr">${t("copy")}</button>`;
+  document.getElementById("copyAddr").addEventListener("click", async e => {
+    try {
+      await navigator.clipboard.writeText(DONATION_ADDRESS);
+      e.target.textContent = t("copied");
+      setTimeout(() => { e.target.textContent = t("copy"); }, 1500);
+    } catch {}
+  });
+}
+
+/* ── boot ─────────────────────────────── */
+applyLang();
+renderStats();
+connectWS();
+startPolling(); // fills the chart fast; stops itself once WS is live
+setTimeout(() => { if (price === null) startSim(); }, 7000); // nothing reachable → simulation
+</script>
+</body>
+</html>
