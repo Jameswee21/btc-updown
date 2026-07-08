@@ -552,7 +552,7 @@
   <div class="modal">
     <button class="close-x" id="closeBoard">×</button>
     <h2 data-i18n="boardTitle">🏆 명예의 전당</h2>
-    <p class="sub" data-i18n="boardNote">이 기기(브라우저)에 저장되는 기록입니다.</p>
+    <p class="sub" id="boardScope"></p>
     <ol class="board-list" id="boardList"></ol>
     <input class="name-input" id="regName" maxlength="12" data-i18n-ph="namePh">
     <button class="copy-btn" id="regBtn" data-i18n="register">현재 최고기록 등록</button>
@@ -568,6 +568,38 @@
     <div id="donateBody"></div>
   </div>
 </div>
+
+<script type="module">
+/* Firebase Firestore — global leaderboard backend.
+   If the SDK fails to load or the network blocks it, window.fbBoard
+   stays undefined and the game falls back to the local board. */
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit, serverTimestamp }
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAc-kWMCaeBIteqw0JplmpMTBVFZRhTZn8",
+  authDomain: "btc-updown.firebaseapp.com",
+  projectId: "btc-updown",
+  storageBucket: "btc-updown.firebasestorage.app",
+  messagingSenderId: "349273521497",
+  appId: "1:349273521497:web:cd707b090a1f3dfaa52048",
+};
+
+try {
+  const db = getFirestore(initializeApp(firebaseConfig));
+  const col = collection(db, "leaderboard");
+  window.fbBoard = {
+    async top10() {
+      const snap = await getDocs(query(col, orderBy("sats", "desc"), limit(10)));
+      return snap.docs.map(d => d.data());
+    },
+    async add(name, sats) {
+      await addDoc(col, { name, sats, ts: serverTimestamp() });
+    },
+  };
+} catch (e) { /* offline / blocked — local board fallback */ }
+</script>
 
 <script>
 /* ════════════════════════════════════════════════════════════
@@ -611,7 +643,9 @@ const I18N = {
     peakLbl: "이번 판 최고",
     board: "명예의 전당",
     boardTitle: "🏆 명예의 전당",
-    boardNote: "이 기기(브라우저)에 저장되는 기록입니다.",
+    boardGlobal: "🌍 전 세계 랭킹 TOP 10",
+    boardLocal: "📱 이 기기의 기록입니다. (서버 연결 안 됨)",
+    boardLoading: "불러오는 중…",
     boardEmpty: "아직 기록이 없어요. 첫 주인공이 되어보세요!",
     betLbl: "베팅",
     allIn: "올인",
@@ -658,7 +692,9 @@ const I18N = {
     peakLbl: "Run peak",
     board: "Hall of Fame",
     boardTitle: "🏆 Hall of Fame",
-    boardNote: "Records are saved on this device (browser).",
+    boardGlobal: "🌍 Global TOP 10",
+    boardLocal: "📱 Records on this device (server unreachable).",
+    boardLoading: "Loading…",
     boardEmpty: "No records yet. Be the first legend!",
     betLbl: "Bet",
     allIn: "ALL-IN",
@@ -978,21 +1014,43 @@ document.querySelectorAll(".chip").forEach(ch => ch.addEventListener("click", ()
 }));
 
 function saveBoard() { localStorage.setItem("btcud_board", JSON.stringify(board)); }
-function addRecord(name, sats) {
+async function addRecord(name, sats) {
+  // local copy always kept as offline fallback
   board.push({ name, sats, ts: Date.now() });
   board.sort((a, b) => b.sats - a.sats);
   board = board.slice(0, 10);
   saveBoard();
+  // global board (Firestore) — best effort
+  if (window.fbBoard) {
+    try { await window.fbBoard.add(name, sats); } catch {}
+  }
 }
-const escapeHtml = s => s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-function renderBoard() {
+const escapeHtml = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+let boardSeq = 0; // ignore stale async renders
+async function renderBoard() {
+  const seq = ++boardSeq;
   const list = document.getElementById("boardList");
-  if (!board.length) {
+  const scope = document.getElementById("boardScope");
+  list.innerHTML = `<div class="board-empty">${t("boardLoading")}</div>`;
+  scope.textContent = "";
+
+  let rows = null;
+  if (window.fbBoard) {
+    try { rows = await window.fbBoard.top10(); } catch {}
+  }
+  if (seq !== boardSeq) return; // a newer render started meanwhile
+
+  const isGlobal = rows !== null;
+  if (!isGlobal) rows = board;
+  scope.textContent = isGlobal ? t("boardGlobal") : t("boardLocal");
+
+  if (!rows.length) {
     list.innerHTML = `<div class="board-empty">${t("boardEmpty")}</div>`;
     return;
   }
   const medals = ["🥇", "🥈", "🥉"];
-  list.innerHTML = board.map((r, i) =>
+  list.innerHTML = rows.map((r, i) =>
     `<li><span class="rank">${medals[i] || (i + 1)}</span>` +
     `<span class="bname">${escapeHtml(r.name)}</span>` +
     `<span class="bsats">${fmtSats(r.sats)} sats</span></li>`).join("");
@@ -1002,12 +1060,13 @@ const boardBg = document.getElementById("boardBg");
 document.getElementById("boardBtn").addEventListener("click", () => { renderBoard(); boardBg.classList.add("show"); });
 document.getElementById("closeBoard").addEventListener("click", () => boardBg.classList.remove("show"));
 boardBg.addEventListener("click", e => { if (e.target === boardBg) boardBg.classList.remove("show"); });
-document.getElementById("regBtn").addEventListener("click", e => {
+document.getElementById("regBtn").addEventListener("click", async e => {
   const name = document.getElementById("regName").value.trim() || t("anon");
-  addRecord(name, wallet.peak);
+  e.target.disabled = true;
+  await addRecord(name, wallet.peak);
   renderBoard();
   e.target.textContent = t("registered");
-  setTimeout(() => { e.target.textContent = t("register"); }, 1500);
+  setTimeout(() => { e.target.textContent = t("register"); e.target.disabled = false; }, 1500);
 });
 
 function showView(name) {
@@ -1109,9 +1168,12 @@ document.getElementById("againBtn").addEventListener("click", () => {
 });
 
 /* bankruptcy */
-document.getElementById("bustSave").addEventListener("click", () => {
+document.getElementById("bustSave").addEventListener("click", async e => {
   const name = document.getElementById("bustName").value.trim() || t("anon");
-  addRecord(name, wallet.peak);
+  const peak = wallet.peak;
+  e.target.disabled = true;
+  await addRecord(name, peak);
+  e.target.disabled = false;
   document.getElementById("bustName").value = "";
   resetWallet();
   game.state = "idle";
