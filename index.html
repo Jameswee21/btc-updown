@@ -1229,10 +1229,8 @@ function renderDonateBody() {
     body.innerHTML = `<div class="addr-warn">${t("noAddr").replace("\n", "<br>")}</div>`;
     return;
   }
-  // lightning address (user@domain) vs on-chain address
-  const uri = (DONATION_ADDRESS.includes("@") ? "lightning:" : "bitcoin:") + DONATION_ADDRESS;
   body.innerHTML = `
-    <img class="qr" alt="BTC QR" onerror="this.style.display='none'" src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(uri)}">
+    <img class="qr" alt="Wallet of Satoshi QR" src="wos-qr.jpg">
     <div class="addr-box">${DONATION_ADDRESS}</div>
     <button class="copy-btn" id="copyAddr">${t("copy")}</button>`;
   document.getElementById("copyAddr").addEventListener("click", async e => {
