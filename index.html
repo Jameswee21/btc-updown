@@ -116,6 +116,120 @@
   .price.flash-down { color: var(--down); }
   canvas#spark { width: 100%; height: 64px; display: block; margin-top: 8px; }
 
+  /* ── wallet ─────────────────────────── */
+  .wallet-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 14px 18px;
+  }
+  .balance {
+    font-size: 26px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    color: var(--gold);
+    letter-spacing: -0.5px;
+  }
+  .balance .sats { font-size: 14px; font-weight: 700; color: var(--muted); }
+  .peak-line { font-size: 12px; color: var(--muted); margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .board-btn {
+    background: var(--card2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 12px;
+    padding: 10px 14px;
+    font-size: 13px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all .15s;
+  }
+  .board-btn:hover { border-color: var(--gold); color: var(--gold); }
+
+  /* ── bet selector ───────────────────── */
+  .bet-select {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin-bottom: 10px;
+  }
+  .chip {
+    flex: 1;
+    max-width: 90px;
+    background: var(--card2);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: 10px;
+    padding: 9px 0;
+    font-size: 13px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all .12s;
+  }
+  .chip:hover { color: var(--text); }
+  .chip.active {
+    background: var(--gold-soft);
+    border-color: var(--gold);
+    color: var(--gold);
+  }
+  .bet-amt {
+    text-align: center;
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 14px;
+    font-variant-numeric: tabular-nums;
+  }
+  .bet-amt b { color: var(--gold); font-size: 15px; }
+
+  /* sats result */
+  .sats-delta {
+    font-size: 22px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    margin-bottom: 2px;
+  }
+  .sats-delta.up { color: var(--up); }
+  .sats-delta.down { color: var(--down); }
+
+  /* name input / board */
+  .name-input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 12px;
+    padding: 12px;
+    font-size: 15px;
+    font-family: inherit;
+    text-align: center;
+    margin-bottom: 10px;
+    outline: none;
+  }
+  .name-input:focus { border-color: var(--gold); }
+  .board-list {
+    list-style: none;
+    text-align: left;
+    margin-bottom: 16px;
+    max-height: 260px;
+    overflow-y: auto;
+  }
+  .board-list li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 10px;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+  }
+  .board-list li:last-child { border-bottom: none; }
+  .board-list .rank { width: 28px; text-align: center; font-weight: 800; flex-shrink: 0; }
+  .board-list .bname { flex: 1; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .board-list .bsats { font-variant-numeric: tabular-nums; font-weight: 800; color: var(--gold); }
+  .board-empty { color: var(--muted); font-size: 13px; padding: 18px 0; text-align: center; }
+
   /* ── game card ──────────────────────── */
   .game-title { text-align: center; font-size: 15px; color: var(--muted); font-weight: 600; margin-bottom: 14px; }
   .btn-row { display: flex; gap: 12px; }
@@ -361,11 +475,27 @@
     <div class="sim-notice" id="simNotice" data-i18n="simNotice"></div>
   </div>
 
+  <!-- wallet -->
+  <div class="card wallet-card">
+    <div>
+      <div class="balance">💰 <span id="balance">10,000</span> <span class="sats">sats</span></div>
+      <div class="peak-line">🏔 <span data-i18n="peakLbl">이번 판 최고</span>: <span id="peakAmt">10,000</span> sats</div>
+    </div>
+    <button class="board-btn" id="boardBtn">🏆 <span data-i18n="board">명예의 전당</span></button>
+  </div>
+
   <!-- game -->
   <div class="card" id="gameCard">
     <!-- idle -->
     <div id="idleView">
       <div class="game-title" data-i18n="question">15초 뒤, 비트코인은?</div>
+      <div class="bet-select">
+        <button class="chip" data-pct="0.1">10%</button>
+        <button class="chip active" data-pct="0.25">25%</button>
+        <button class="chip" data-pct="0.5">50%</button>
+        <button class="chip" data-pct="1" data-i18n="allIn">올인</button>
+      </div>
+      <div class="bet-amt"><span data-i18n="betLbl">베팅</span>: <b id="betAmt">2,500</b> sats</div>
       <div class="btn-row">
         <button class="bet-btn bet-up" id="btnUp" disabled>
           <span class="emo">🚀</span><span data-i18n="up">오른다!</span>
@@ -381,15 +511,25 @@
       <div class="pick-badge" id="pickBadge"></div>
       <div class="countdown" id="countdown">15</div>
       <div class="delta-live" id="deltaLive">$0.00</div>
-      <div class="lock-info"><span data-i18n="lockedAt">시작 가격</span>: <span id="lockPrice"></span></div>
+      <div class="lock-info"><span data-i18n="lockedAt">시작 가격</span>: <span id="lockPrice"></span> · <span data-i18n="betLbl">베팅</span> <span id="roundBet"></span> sats</div>
     </div>
 
     <!-- result -->
     <div class="result" id="resultView">
       <div class="result-banner" id="resultBanner"></div>
+      <div class="sats-delta" id="satsDelta"></div>
       <div class="result-sub" id="resultSub"></div>
       <button class="again-btn" id="againBtn" data-i18n="again">한 판 더!</button>
       <button class="share-btn" id="shareBtn" data-i18n="share">결과 공유하기</button>
+    </div>
+
+    <!-- bankrupt -->
+    <div class="result" id="bustView">
+      <div class="result-banner lose" data-i18n="bust">💸 파산!</div>
+      <div class="result-sub" id="bustSub"></div>
+      <input class="name-input" id="bustName" maxlength="12" data-i18n-ph="namePh">
+      <button class="again-btn" id="bustSave" data-i18n="bustSave">🏆 보드에 남기고 재시작</button>
+      <button class="share-btn" id="bustSkip" data-i18n="bustSkip">그냥 재시작</button>
     </div>
   </div>
 
@@ -407,6 +547,18 @@
 
 </div>
 
+<!-- leaderboard modal -->
+<div class="modal-bg" id="boardBg">
+  <div class="modal">
+    <button class="close-x" id="closeBoard">×</button>
+    <h2 data-i18n="boardTitle">🏆 명예의 전당</h2>
+    <p class="sub" data-i18n="boardNote">이 기기(브라우저)에 저장되는 기록입니다.</p>
+    <ol class="board-list" id="boardList"></ol>
+    <input class="name-input" id="regName" maxlength="12" data-i18n-ph="namePh">
+    <button class="copy-btn" id="regBtn" data-i18n="register">현재 최고기록 등록</button>
+  </div>
+</div>
+
 <!-- donate modal -->
 <div class="modal-bg" id="modalBg">
   <div class="modal">
@@ -422,8 +574,9 @@
    ⚙️ 설정 — 본인의 비트코인 주소로 바꿔주세요!
    Replace with YOUR Bitcoin address before deploying.
    ════════════════════════════════════════════════════════════ */
-const DONATION_ADDRESS = "YOUR_BTC_ADDRESS_HERE";
+const DONATION_ADDRESS = "eightplywood11@walletofsatoshi.com"; // ⚡ Lightning address
 const ROUND_SECONDS = 15;
+const START_SATS = 10000;
 
 /* ── i18n ─────────────────────────────── */
 const I18N = {
@@ -443,7 +596,7 @@ const I18N = {
     record: "전적",
     donate: "☕ 재밌었다면 비트코인 한 사토시 어때요?",
     donateTitle: "⚡ 비트코인 후원",
-    donateSub: "재밌게 즐기셨다면 개발자에게 사토시를 보내주세요. 큰 힘이 됩니다! 🧡",
+    donateSub: "재밌게 즐기셨다면 라이트닝(⚡)으로 사토시를 보내주세요. 큰 힘이 됩니다! 🧡",
     copy: "주소 복사",
     copied: "✅ 복사됨!",
     disclaimer: "실제 돈이 오가지 않는 재미용 게임입니다. 시세: 주요 거래소 실시간 데이터.",
@@ -455,7 +608,22 @@ const I18N = {
     yourPick: "나의 선택",
     pickUp: "🚀 오른다",
     pickDown: "🐻 내린다",
-    shareText: (streak, w, l) => `₿ UP or DOWN — 비트코인 예측 게임에서 ${streak}연승 중! (전적 ${w}승 ${l}패) 너도 도전해봐 👉`,
+    peakLbl: "이번 판 최고",
+    board: "명예의 전당",
+    boardTitle: "🏆 명예의 전당",
+    boardNote: "이 기기(브라우저)에 저장되는 기록입니다.",
+    boardEmpty: "아직 기록이 없어요. 첫 주인공이 되어보세요!",
+    betLbl: "베팅",
+    allIn: "올인",
+    bust: "💸 파산!",
+    bustSub: peak => `이번 판 최고 기록: ${peak} sats — 새로 10,000 sats를 드릴게요!`,
+    bustSave: "🏆 보드에 남기고 재시작",
+    bustSkip: "그냥 재시작",
+    namePh: "이니셜 / 아이디 (최대 12자)",
+    register: "현재 최고기록 등록",
+    registered: "✅ 등록됨!",
+    anon: "익명",
+    shareText: (streak, w, l, peak) => `₿ UP or DOWN — 가상 10,000 사토시로 시작해서 최고 ${peak} sats 달성! (${streak}연승, ${w}승 ${l}패) 너도 도전해봐 👉`,
     shareCopied: "✅ 결과가 복사됐어요! 붙여넣기 해보세요.",
     noAddr: "⚠️ 후원 주소가 아직 설정되지 않았습니다.\nindex.html 상단의 DONATION_ADDRESS 값을 본인 비트코인 주소로 바꿔주세요.",
   },
@@ -475,7 +643,7 @@ const I18N = {
     record: "Record",
     donate: "☕ Enjoyed it? Send a satoshi!",
     donateTitle: "⚡ Bitcoin Donation",
-    donateSub: "If you had fun, send the developer a few sats. It means a lot! 🧡",
+    donateSub: "If you had fun, send the developer a few sats over Lightning (⚡). It means a lot! 🧡",
     copy: "Copy address",
     copied: "✅ Copied!",
     disclaimer: "Just for fun — no real money involved. Price: live data from major exchanges.",
@@ -487,7 +655,22 @@ const I18N = {
     yourPick: "Your pick",
     pickUp: "🚀 UP",
     pickDown: "🐻 DOWN",
-    shareText: (streak, w, l) => `₿ UP or DOWN — I'm on a ${streak}-win streak in the Bitcoin prediction game! (${w}W ${l}L) Try to beat me 👉`,
+    peakLbl: "Run peak",
+    board: "Hall of Fame",
+    boardTitle: "🏆 Hall of Fame",
+    boardNote: "Records are saved on this device (browser).",
+    boardEmpty: "No records yet. Be the first legend!",
+    betLbl: "Bet",
+    allIn: "ALL-IN",
+    bust: "💸 Busted!",
+    bustSub: peak => `Run peak: ${peak} sats — here's a fresh 10,000 sats!`,
+    bustSave: "🏆 Save to board & restart",
+    bustSkip: "Just restart",
+    namePh: "Initials / ID (max 12 chars)",
+    register: "Save my peak score",
+    registered: "✅ Saved!",
+    anon: "ANON",
+    shareText: (streak, w, l, peak) => `₿ UP or DOWN — started with 10,000 virtual sats and peaked at ${peak} sats! (${streak}-win streak, ${w}W ${l}L) Try to beat me 👉`,
     shareCopied: "✅ Result copied! Paste it anywhere.",
     noAddr: "⚠️ Donation address not set yet.\nEdit DONATION_ADDRESS at the top of index.html.",
   },
@@ -502,6 +685,10 @@ function applyLang() {
   document.querySelectorAll("[data-i18n]").forEach(el => {
     const v = I18N[lang][el.dataset.i18n];
     if (typeof v === "string") el.textContent = v;
+  });
+  document.querySelectorAll("[data-i18n-ph]").forEach(el => {
+    const v = I18N[lang][el.dataset.i18nPh];
+    if (typeof v === "string") el.placeholder = v;
   });
   document.getElementById("langBtn").textContent = lang === "ko" ? "EN" : "한국어";
   updateConnUI();
@@ -753,6 +940,7 @@ const game = {
   lockPrice: null,
   endsAt: null,
   timer: null,
+  bet: 0,          // sats wagered this round
 };
 
 const stats = JSON.parse(localStorage.getItem("btcud_stats") || '{"wins":0,"losses":0,"streak":0,"best":0}');
@@ -763,10 +951,70 @@ function renderStats() {
   document.getElementById("stRecord").textContent = `${stats.wins} - ${stats.losses}`;
 }
 
+/* ── wallet & leaderboard ─────────────── */
+const fmtSats = n => n.toLocaleString("en-US");
+let wallet = JSON.parse(localStorage.getItem("btcud_wallet") || "null") || { balance: START_SATS, peak: START_SATS };
+let board = JSON.parse(localStorage.getItem("btcud_board") || "[]");
+let betPct = 0.25;
+
+function saveWallet() { localStorage.setItem("btcud_wallet", JSON.stringify(wallet)); }
+function currentBet() { return Math.max(1, Math.floor(wallet.balance * betPct)); }
+function renderWallet() {
+  document.getElementById("balance").textContent = fmtSats(wallet.balance);
+  document.getElementById("peakAmt").textContent = fmtSats(wallet.peak);
+  document.getElementById("betAmt").textContent = fmtSats(currentBet());
+}
+function resetWallet() {
+  wallet = { balance: START_SATS, peak: START_SATS };
+  saveWallet();
+  renderWallet();
+}
+
+document.querySelectorAll(".chip").forEach(ch => ch.addEventListener("click", () => {
+  document.querySelectorAll(".chip").forEach(c => c.classList.remove("active"));
+  ch.classList.add("active");
+  betPct = parseFloat(ch.dataset.pct);
+  renderWallet();
+}));
+
+function saveBoard() { localStorage.setItem("btcud_board", JSON.stringify(board)); }
+function addRecord(name, sats) {
+  board.push({ name, sats, ts: Date.now() });
+  board.sort((a, b) => b.sats - a.sats);
+  board = board.slice(0, 10);
+  saveBoard();
+}
+const escapeHtml = s => s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+function renderBoard() {
+  const list = document.getElementById("boardList");
+  if (!board.length) {
+    list.innerHTML = `<div class="board-empty">${t("boardEmpty")}</div>`;
+    return;
+  }
+  const medals = ["🥇", "🥈", "🥉"];
+  list.innerHTML = board.map((r, i) =>
+    `<li><span class="rank">${medals[i] || (i + 1)}</span>` +
+    `<span class="bname">${escapeHtml(r.name)}</span>` +
+    `<span class="bsats">${fmtSats(r.sats)} sats</span></li>`).join("");
+}
+
+const boardBg = document.getElementById("boardBg");
+document.getElementById("boardBtn").addEventListener("click", () => { renderBoard(); boardBg.classList.add("show"); });
+document.getElementById("closeBoard").addEventListener("click", () => boardBg.classList.remove("show"));
+boardBg.addEventListener("click", e => { if (e.target === boardBg) boardBg.classList.remove("show"); });
+document.getElementById("regBtn").addEventListener("click", e => {
+  const name = document.getElementById("regName").value.trim() || t("anon");
+  addRecord(name, wallet.peak);
+  renderBoard();
+  e.target.textContent = t("registered");
+  setTimeout(() => { e.target.textContent = t("register"); }, 1500);
+});
+
 function showView(name) {
   document.getElementById("idleView").style.display = name === "idle" ? "block" : "none";
   document.getElementById("roundView").classList.toggle("show", name === "round");
   document.getElementById("resultView").classList.toggle("show", name === "result");
+  document.getElementById("bustView").classList.toggle("show", name === "bust");
 }
 
 function startRound(pick) {
@@ -775,11 +1023,13 @@ function startRound(pick) {
   game.pick = pick;
   game.lockPrice = price;
   game.endsAt = Date.now() + ROUND_SECONDS * 1000;
+  game.bet = currentBet();
 
   const badge = document.getElementById("pickBadge");
   badge.className = "pick-badge " + pick;
   badge.textContent = `${t("yourPick")}: ${pick === "up" ? t("pickUp") : t("pickDown")}`;
   document.getElementById("lockPrice").textContent = fmt(game.lockPrice);
+  document.getElementById("roundBet").textContent = fmtSats(game.bet);
 
   showView("round");
   updateRoundUI();
@@ -824,6 +1074,18 @@ function finishRound() {
   saveStats();
   renderStats();
 
+  // settle the wager
+  if (outcome === "win") wallet.balance += game.bet;
+  else if (outcome === "lose") wallet.balance = Math.max(0, wallet.balance - game.bet);
+  if (wallet.balance > wallet.peak) wallet.peak = wallet.balance;
+  saveWallet();
+  renderWallet();
+
+  const sd = document.getElementById("satsDelta");
+  sd.textContent = outcome === "win" ? `+${fmtSats(game.bet)} sats`
+    : outcome === "lose" ? `−${fmtSats(game.bet)} sats` : "±0 sats";
+  sd.className = "sats-delta " + (outcome === "win" ? "up" : outcome === "lose" ? "down" : "");
+
   const banner = document.getElementById("resultBanner");
   banner.className = "result-banner " + outcome;
   banner.textContent = t(outcome);
@@ -831,7 +1093,12 @@ function finishRound() {
   document.getElementById("resultSub").textContent =
     `${fmt(game.lockPrice)} → ${fmt(price)}  (${sign}$${Math.abs(d).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`;
 
-  showView("result");
+  if (wallet.balance <= 0) {
+    document.getElementById("bustSub").textContent = t("bustSub")(fmtSats(wallet.peak));
+    showView("bust");
+  } else {
+    showView("result");
+  }
 }
 
 document.getElementById("btnUp").addEventListener("click", () => startRound("up"));
@@ -841,9 +1108,26 @@ document.getElementById("againBtn").addEventListener("click", () => {
   showView("idle");
 });
 
+/* bankruptcy */
+document.getElementById("bustSave").addEventListener("click", () => {
+  const name = document.getElementById("bustName").value.trim() || t("anon");
+  addRecord(name, wallet.peak);
+  document.getElementById("bustName").value = "";
+  resetWallet();
+  game.state = "idle";
+  showView("idle");
+  renderBoard();
+  boardBg.classList.add("show"); // show them their spot on the board
+});
+document.getElementById("bustSkip").addEventListener("click", () => {
+  resetWallet();
+  game.state = "idle";
+  showView("idle");
+});
+
 /* share */
 document.getElementById("shareBtn").addEventListener("click", async () => {
-  const text = t("shareText")(stats.streak, stats.wins, stats.losses) + " " + location.href;
+  const text = t("shareText")(stats.streak, stats.wins, stats.losses, fmtSats(wallet.peak)) + " " + location.href;
   if (navigator.share) {
     try { await navigator.share({ text }); return; } catch {}
   }
@@ -883,9 +1167,10 @@ function renderDonateBody() {
     body.innerHTML = `<div class="addr-warn">${t("noAddr").replace("\n", "<br>")}</div>`;
     return;
   }
-  const uri = "bitcoin:" + DONATION_ADDRESS;
+  // lightning address (user@domain) vs on-chain address
+  const uri = (DONATION_ADDRESS.includes("@") ? "lightning:" : "bitcoin:") + DONATION_ADDRESS;
   body.innerHTML = `
-    <img class="qr" alt="BTC QR" src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(uri)}">
+    <img class="qr" alt="BTC QR" onerror="this.style.display='none'" src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(uri)}">
     <div class="addr-box">${DONATION_ADDRESS}</div>
     <button class="copy-btn" id="copyAddr">${t("copy")}</button>`;
   document.getElementById("copyAddr").addEventListener("click", async e => {
@@ -900,6 +1185,7 @@ function renderDonateBody() {
 /* ── boot ─────────────────────────────── */
 applyLang();
 renderStats();
+renderWallet();
 connectWS();
 startPolling(); // fills the chart fast; stops itself once WS is live
 setTimeout(() => { if (price === null) startSim(); }, 7000); // nothing reachable → simulation
